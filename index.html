@@ -151,21 +151,31 @@
         <!-- Slide 6: Music -->
         <section class="slide" id="music">
             <div class="music-player">
-                <h2>Our Song</h2>
-                <div class="album-art">
-                    <img src="images/album-cover.jpg" alt="Our Song">
-                </div>
-                <div class="player-controls">
-                    <button id="prevBtn" class="control-btn"><i class="fas fa-step-backward"></i></button>
-                    <button id="playBtn" class="control-btn play"><i class="fas fa-play"></i></button>
-                    <button id="nextBtn" class="control-btn"><i class="fas fa-step-forward"></i></button>
-                </div>
-                <div class="song-info">
-                    <h3 id="songTitle">Perfect</h3>
-                    <p id="artist">Ed Sheeran</p>
-                </div>
-                <div class="progress-container">
-                    <div class="progress"></div>
+                <h2>Our Playlist</h2>
+                <div class="player-container">
+                    <div class="now-playing">
+                        <div class="album-art">
+                            <img src="images/songs/beautiful_things.jpeg" alt="Now Playing" id="albumArt">
+                        </div>
+                        <div class="song-info">
+                            <h3 id="songTitle">Beautiful Things</h3>
+                            <p id="artist">Benson Boone</p>
+                        </div>
+                        <div class="player-controls">
+                            <button id="prevBtn" class="control-btn" title="Previous"><i class="fas fa-step-backward"></i></button>
+                            <button id="playBtn" class="control-btn play" title="Play/Pause"><i class="fas fa-play"></i></button>
+                            <button id="nextBtn" class="control-btn" title="Next"><i class="fas fa-step-forward"></i></button>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress"></div>
+                        </div>
+                    </div>
+                    <div class="playlist">
+                        <h3>Playlist</h3>
+                        <ul id="playlist">
+                            <!-- Songs will be added by JavaScript -->
+                        </ul>
+                    </div>
                 </div>
             </div>
         </section>

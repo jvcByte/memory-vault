@@ -24,26 +24,47 @@ document.addEventListener('DOMContentLoaded', function() {
     let touchEndY = 0;
     let isEnvelopeOpen = false;
 
-    // Songs data
+    // Songs data with album art and duration
     const songs = [
         {
             title: 'Perfect',
             artist: 'Ed Sheeran',
-            src: 'music/perfect.mp3'
+            src: 'music/perfect.mp3',
+            cover: 'images/album-cover.jpg',
+            duration: '4:23'
         },
         {
             title: 'All of Me',
             artist: 'John Legend',
-            src: 'music/all-of-me.mp3'
+            src: 'music/all-of-me.mp3',
+            cover: 'images/album-cover2.jpg',
+            duration: '4:30'
         },
         {
             title: 'A Thousand Years',
             artist: 'Christina Perri',
-            src: 'music/a-thousand-years.mp3'
+            src: 'music/a-thousand-years.mp3',
+            cover: 'images/album-cover3.jpg',
+            duration: '4:45'
+        },
+        {
+            title: 'Perfect Duet',
+            artist: 'Ed Sheeran & Beyoncé',
+            src: 'music/perfect-duet.mp3',
+            cover: 'images/album-cover4.jpg',
+            duration: '4:19'
+        },
+        {
+            title: 'Thinking Out Loud',
+            artist: 'Ed Sheeran',
+            src: 'music/thinking-out-loud.mp3',
+            cover: 'images/album-cover5.jpg',
+            duration: '4:41'
         }
     ];
 
     let songIndex = 0;
+    let isPlaying = false;
 
     // Initialize the slideshow
     function init() {
@@ -55,6 +76,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Load first song
         loadSong(songs[songIndex]);
+        
+        // Initialize playlist
+        renderPlaylist();
+        
+        // Set up audio event listeners
+        setupAudioEvents();
     }
 
     // Set up all event listeners
@@ -217,87 +244,8 @@ document.addEventListener('DOMContentLoaded', function() {
             responseMessage.classList.remove('show');
         }, 3000);
     }
-
-    // Music player functions
-    function loadSong(song) {
-        if (!songTitle || !artist || !audio) return;
-        
-        songTitle.textContent = song.title;
-        artist.textContent = song.artist;
-        audio.src = song.src;
-    }
-
-    function togglePlay() {
-        if (!audio) return;
-        
-        if (audio.paused) {
-            audio.play().catch(e => console.log("Audio play failed:", e));
-        } else {
-            audio.pause();
-        }
-        updatePlayButton();
-    }
-
-    function updatePlayButton() {
-        if (!playBtn || !audio) return;
-        
-        const icon = playBtn.querySelector('i');
-        if (!icon) return;
-        
-        if (audio.paused) {
-            icon.classList.remove('fa-pause');
-            icon.classList.add('fa-play');
-            playBtn.classList.remove('playing');
-        } else {
-            icon.classList.remove('fa-play');
-            icon.classList.add('fa-pause');
-            playBtn.classList.add('playing');
-        }
-    }
-
-    function prevSong() {
-        if (!audio) return;
-        
-        songIndex--;
-        if (songIndex < 0) {
-            songIndex = songs.length - 1;
-        }
-        loadSong(songs[songIndex]);
-        audio.play().catch(e => console.log("Audio play failed:", e));
-        updatePlayButton();
-    }
-
-    function nextSong() {
-        if (!audio) return;
-        
-        songIndex = (songIndex + 1) % songs.length;
-        loadSong(songs[songIndex]);
-        audio.play().catch(e => console.log("Audio play failed:", e));
-        updatePlayButton();
-    }
-
-    function updateProgress() {
-        if (!progress || !audio) return;
-        
-        const { duration, currentTime } = audio;
-        const progressPercent = (currentTime / duration) * 100;
-        progress.style.width = `${progressPercent}%`;
-    }
-
-    function setProgress(e) {
-        if (!progressContainer || !audio) return;
-        
-        const width = this.clientWidth;
-        const clickX = e.offsetX;
-        const duration = audio.duration;
-        audio.currentTime = (clickX / width) * duration;
-    }
-
-    // Touch event handlers for swipe
-    function handleTouchStart(e) {
-        touchStartY = e.touches[0].clientY;
-    }
-
+    
+    // Handle touch end event for swipe gestures
     function handleTouchEnd(e) {
         if (!touchStartY) return;
         
@@ -315,6 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
+        // Reset touch positions
         touchStartY = 0;
         touchEndY = 0;
     }

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suggestions - Memory Vault</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="suggestions-container">
+        <h1>Suggestions & Feedback</h1>
+        <p>Have an idea to improve Memory Vault? We'd love to hear it!</p>
+        
+        <form id="suggestionForm" class="suggestion-form">
+            <div class="form-group">
+                <label for="name">Your Name (Optional)</label>
+                <input type="text" id="name" name="name" placeholder="John Doe">
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email (Optional, if you'd like a response)</label>
+                <input type="email" id="email" name="email" placeholder="your@email.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="suggestionType">Suggestion Type</label>
+                <select id="suggestionType" name="type" required>
+                    <option value="">Select a type...</option>
+                    <option value="feature">Feature Request</option>
+                    <option value="bug">Bug Report</option>
+                    <option value="improvement">Improvement</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="suggestion">Your Suggestion <span class="required">*</span></label>
+                <textarea id="suggestion" name="suggestion" rows="5" required placeholder="Describe your suggestion in detail..."></textarea>
+            </div>
+            
+            <button type="submit" class="btn submit-btn">
+                <i class="fas fa-paper-plane"></i> Submit Suggestion
+            </button>
+        </form>
+        
+        <div id="responseMessage" class="response-message"></div>
+    </div>
+    
+    <script src="js/suggestions.js"></script>
+</body>
+</html>
