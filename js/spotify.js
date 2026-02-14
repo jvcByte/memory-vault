@@ -127,7 +127,8 @@ async function handleCodeExchange(code) {
         window.history.replaceState({}, document.title, window.location.pathname);
         
         // Initialize player with new token
-        setupPlayer(tokenData.access_token);
+        accessToken = tokenData.access_token;
+        await initializePlayer();
         
     } catch (error) {
         console.error('Error during authentication:', error);
