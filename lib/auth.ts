@@ -1,3 +1,4 @@
+// lib/auth.ts
 import { NextAuthOptions } from 'next-auth'
 import EmailProvider from 'next-auth/providers/email'
 import { DrizzleAdapter } from '@auth/drizzle-adapter'
@@ -9,62 +10,61 @@ export const authOptions: NextAuthOptions = {
   providers: [
     EmailProvider({
       server: {
-        host: process.env.EMAIL_SERVER_HOST,
-        port: Number(process.env.EMAIL_SERVER_PORT),
+        host: process.env.EMAIL_SERVER_HOST || '',
+        port: Number(process.env.EMAIL_SERVER_PORT || 587),
         auth: {
-          user: process.env.EMAIL_SERVER_USER,
-          pass: process.env.EMAIL_SERVER_PASSWORD,
+          user: process.env.EMAIL_SERVER_USER || '',
+          pass: process.env.EMAIL_SERVER_PASSWORD || '',
         },
       },
       from: process.env.EMAIL_FROM,
     }),
   ],
+  theme: {
+    colorScheme: 'auto',
+  },
+  secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: '/login',
     error: '/login',
   },
   callbacks: {
     async signIn({ user }) {
+      console.log('🔑 Sign in attempt for:', user?.email);
       // Only allow whitelisted email
-      if (!user.email || !isEmailAllowed(user.email)) {
-        console.log('❌ Sign in rejected for:', user.email)
-        return false
+      if (!user?.email || !isEmailAllowed(user.email)) {
+        console.log('❌ Sign in rejected for:', user?.email);
+        return false;
       }
-      console.log('✅ Sign in allowed for:', user.email)
-      return true
+      console.log('✅ Sign in allowed for:', user.email);
+      return true;
     },
-    async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id
-        session.user.role = user.role || 'owner'
+    async jwt({ token, user }) {
+      console.log('🔐 JWT Callback:', { token, user });
+      if (user) {
+        token.id = user.id;
+        token.role = user.role === 'viewer' ? 'viewer' : 'owner';
       }
-      return session
+      return token;
+    },
+    async session({ session, token }) {
+      console.log('📝 Session Callback:', { session, token });
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as 'owner' | 'viewer';
+      }
+      return session;
     },
     async redirect({ url, baseUrl }) {
-      // Allows relative callback URLs for the auth flow
-      if (url.startsWith('/')) return `${baseUrl}${url}`
-      // Allows callback URLs on the same origin
-      else if (new URL(url).origin === baseUrl) return url
-      return baseUrl
+      console.log('🔄 Redirecting:', { url, baseUrl });
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
   },
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // 24 hours
-  },
-  events: {
-    async createUser({ user }) {
-      // Automatically set the allowed email as owner
-      if (user.email && isEmailAllowed(user.email)) {
-        console.log('🎯 Creating user and setting as owner:', user.email)
-        const { users } = await import('./db/schema')
-        const { eq } = await import('drizzle-orm')
-        await db.update(users).set({ role: 'owner' }).where(eq(users.id, user.id))
-      }
-    },
   },
   debug: process.env.NODE_ENV === 'development',
-  useSecureCookies: process.env.NODE_ENV === 'production',
-  secret: process.env.NEXTAUTH_SECRET,
-}
+};
