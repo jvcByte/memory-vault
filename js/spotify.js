@@ -83,6 +83,10 @@ async function generateCodeChallenge(verifier) {
 // Handle login
 async function handleLogin() {
     try {
+        // Clear any existing tokens and state
+        localStorage.removeItem('spotify_token_data');
+        localStorage.removeItem('code_verifier');
+        
         const codeVerifier = generateRandomString(128);
         const codeChallenge = await generateCodeChallenge(codeVerifier);
         
@@ -90,29 +94,22 @@ async function handleLogin() {
         localStorage.setItem('code_verifier', codeVerifier);
         
         // Create the authorization URL
-        const authUrl = new URL(authEndpoint);
+        const params = new URLSearchParams({
+            client_id: clientId,
+            response_type: 'code',
+            redirect_uri: redirectUri,
+            code_challenge_method: 'S256',
+            code_challenge: codeChallenge,
+            scope: scopes.join(' '),
+            show_dialog: 'true' // Force the approval prompt
+        });
         
-        // Manually build the query parameters to ensure proper encoding
-        const params = new URLSearchParams();
-        params.append('response_type', 'code');
-        params.append('client_id', clientId);
-        params.append('scope', scopes.join(' '));
-        params.append('code_challenge_method', 'S256');
-        params.append('code_challenge', codeChallenge);
-        params.append('redirect_uri', redirectUri);
+        // Open the authorization URL in the same window
+        window.location.href = `${authEndpoint}?${params.toString()}`;
         
-        // Use a new window for authentication to avoid CORS issues
-        const authWindow = window.open(`${authEndpoint}?${params.toString()}`, '_self');
-        
-        if (!authWindow) {
-            throw new Error('Popup was blocked. Please allow popups for this site.');
-        }
     } catch (error) {
         console.error('Login error:', error);
-        if (authMessage) {
-            authMessage.innerHTML = `Error during login: ${error.message}`;
-            authMessage.style.display = 'block';
-        }
+        showError(`Login failed: ${error.message}`);
     }
 }
 
@@ -129,14 +126,15 @@ async function handleCodeExchange(code) {
         // Clear any existing token data
         localStorage.removeItem('spotify_token_data');
         
-        const params = new URLSearchParams();
-        params.append('client_id', clientId);
-        params.append('grant_type', 'authorization_code');
-        params.append('code', code);
-        params.append('redirect_uri', redirectUri);
-        params.append('code_verifier', codeVerifier);
+        const params = new URLSearchParams({
+            client_id: clientId,
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: redirectUri,
+            code_verifier: codeVerifier
+        });
         
-        console.log('Making token request with params:', params.toString());
+        console.log('Making token request...');
         
         const response = await fetch('https://accounts.spotify.com/api/token', {
             method: 'POST',
@@ -146,14 +144,14 @@ async function handleCodeExchange(code) {
             body: params
         });
         
-        const responseData = await response.json();
-        
         if (!response.ok) {
-            console.error('Token exchange failed:', responseData);
-            throw new Error(responseData.error_description || 'Failed to get access token');
+            const errorData = await response.json();
+            console.error('Token exchange failed:', errorData);
+            throw new Error(errorData.error_description || 'Failed to get access token');
         }
         
-        console.log('Token exchange successful:', responseData);
+        const responseData = await response.json();
+        console.log('Token exchange successful');
         
         // Store token data with timestamp
         const tokenDataToStore = {
@@ -169,14 +167,22 @@ async function handleCodeExchange(code) {
             window.history.replaceState({}, document.title, cleanUrl);
         }
         
-        // Initialize player with new token
+        // Set the access token
         accessToken = responseData.access_token;
         
-        // Small delay to ensure token is properly set
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Show loading state
+        if (authMessage) {
+            authMessage.innerHTML = '<div class="loading">Connecting to Spotify...</div>';
+            authMessage.style.display = 'block';
+        }
         
-        // Initialize the player
-        await initializePlayer();
+        // Initialize the player after a short delay
+        setTimeout(() => {
+            initializePlayer().catch(error => {
+                console.error('Failed to initialize player:', error);
+                showError(`Failed to initialize player: ${error.message}`);
+            });
+        }, 500);
         
     } catch (error) {
         console.error('Error during authentication:', error);
@@ -184,22 +190,44 @@ async function handleCodeExchange(code) {
         // Clear any partial token data
         localStorage.removeItem('spotify_token_data');
         
+        showError(`Authentication failed: ${error.message || 'Unknown error occurred'}`);
+        
+        // Add retry button
         if (authMessage) {
-            authMessage.innerHTML = `
-                <p>Authentication failed. Please try again.</p>
-                <p>${error.message || 'Unknown error occurred'}</p>
-                <button id="retryLogin" class="btn spotify-btn">
-                    <i class="fas fa-redo"></i> Try Again
-                </button>
-            `;
-            authMessage.style.display = 'block';
+            const retryBtn = document.createElement('button');
+            retryBtn.id = 'retryLogin';
+            retryBtn.className = 'btn spotify-btn';
+            retryBtn.innerHTML = '<i class="fas fa-redo"></i> Try Again';
+            retryBtn.onclick = handleLogin;
             
-            // Add retry button handler
-            const retryBtn = document.getElementById('retryLogin');
-            if (retryBtn) {
-                retryBtn.addEventListener('click', handleLogin);
-            }
+            authMessage.appendChild(document.createElement('br'));
+            authMessage.appendChild(document.createElement('br'));
+            authMessage.appendChild(retryBtn);
         }
+    }
+}
+
+// Verify the Spotify access token
+async function verifyToken(token) {
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'Invalid token');
+        }
+        
+        const data = await response.json();
+        console.log('Verified user:', data.display_name || data.id);
+        return true;
+        
+    } catch (error) {
+        console.error('Token verification failed:', error);
+        return false;
     }
 }
 
