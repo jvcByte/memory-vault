@@ -1,4 +1,4 @@
-// Spotify Web API configuration
+// Spotify Web Playback SDK configuration
 const clientId = '1ce3893c730c480689dc13df6183f212';
 const redirectUri = 'https://valndinma.vercel.app/spotify.html';
 const authEndpoint = 'https://accounts.spotify.com/authorize';
@@ -15,6 +15,24 @@ const scopes = [
     'playlist-read-collaborative',
     'streaming'
 ];
+
+// Connection retry counter
+let retryCount = 0;
+const MAX_RETRIES = 5;
+
+// Helper function to show error messages
+function showError(message) {
+    console.error('Error:', message);
+    if (authMessage) {
+        authMessage.innerHTML = `
+            <div class="error-message">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        authMessage.style.display = 'block';
+    }
+}
 
 // DOM Elements
 const loginBtn = document.getElementById('loginBtn');
@@ -208,108 +226,124 @@ async function initializePlayer() {
                 }, 10000); // 10 second timeout
             });
         }
-        
-        if (!window.Spotify) {
-            console.error('Spotify Web Playback SDK still not available');
-            if (authMessage) {
-                authMessage.innerHTML = 'Failed to load Spotify player. Please refresh the page and try again.';
-                authMessage.style.display = 'block';
-            }
-            return;
-        }
-    }
-    
-    if (!accessToken) {
-        console.error('No access token available');
         return;
     }
     
-    console.log('Initializing Spotify Player...');
-    
     try {
-        // Create the player instance
+        console.log('Initializing Spotify Player...');
+        
+        // Check if we have a valid token
+        if (!accessToken) {
+            const tokenData = localStorage.getItem('spotify_token_data');
+            if (tokenData) {
+                const { access_token, timestamp } = JSON.parse(tokenData);
+                // Check if token is expired (expires in 1 hour)
+                if (Date.now() - timestamp < 3600000) {
+                    accessToken = access_token;
+                } else {
+                    throw new Error('Access token expired');
+                }
+            } else {
+                throw new Error('No access token found');
+            }
+        }
+        
+        // Create a new Spotify Player instance with error handling
         player = new window.Spotify.Player({
             name: 'Memory Vault Player',
-            getOAuthToken: cb => { 
+            getOAuthToken: cb => {
                 console.log('Providing access token to player');
-                if (!accessToken) {
-                    console.error('No access token available, triggering re-authentication');
-                    handleLogin().catch(console.error);
-                    return;
-                }
-                cb(accessToken); 
+                cb(accessToken);
             },
             volume: 0.5
         });
         
-        // Add a small delay to help with WebSocket connection
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        isPlayerInitialized = true;
-        
-        // Add error handling
+        // Error handling
         player.addListener('initialization_error', ({ message }) => { 
             console.error('Initialization Error:', message);
+            showError('Failed to initialize player: ' + message);
+            // Try to reinitialize after a delay
+            setTimeout(initializePlayer, 3000);
         });
         
         player.addListener('authentication_error', ({ message }) => {
             console.error('Authentication Error:', message);
-            // Clear invalid token and show login
+            // Clear any stored tokens and restart auth flow
             localStorage.removeItem('spotify_token_data');
-            if (authMessage) {
-                authMessage.style.display = 'block';
-                authMessage.innerHTML = 'Session expired. Please log in again.';
-            }
+            showError('Authentication failed. Please try logging in again.');
         });
         
-        player.addListener('account_error', ({ message }) => { 
+        player.addListener('account_error', ({ message }) => {
             console.error('Account Error:', message);
+            showError('Account error. Please check your Spotify account.');
         });
         
         player.addListener('playback_error', ({ message }) => {
             console.error('Playback Error:', message);
+            showError('Playback error: ' + message);
         });
         
-        // Player state changed
+        // Playback status updates
         player.addListener('player_state_changed', state => {
-            if (!state) return;
-            
-            const { current_track, position, duration } = state.track_window;
-            
-            // Update UI with current track info
-            updateNowPlaying(current_track, position, duration);
-            
-            // Update play/pause button
-            isPlaying = !state.paused;
-            updatePlayButton();
-            
-            // Update progress bar
-            updateProgress();
+            console.log('Player state changed:', state);
+            updatePlaybackState(state);
         });
         
-        // Successfully connected to the player
+        // Ready
         player.addListener('ready', ({ device_id }) => {
             console.log('Player is ready with Device ID', device_id);
-            deviceId = device_id;
+            isPlayerInitialized = true;
+            currentDeviceId = device_id;
             
-            // Show player and hide auth message
-            if (playerContainer) playerContainer.style.display = 'block';
-            if (authMessage) authMessage.style.display = 'none';
+            // Hide any error messages
+            if (authMessage) {
+                authMessage.style.display = 'none';
+            }
             
-            // Load the playlist
-            loadPlaylist();
+            // Load user's playlists
+            loadUserPlaylists();
         });
         
-        // Connect to the player
-        const connected = await player.connect();
-        if (connected) {
-            console.log('Successfully connected to Spotify player');
-        } else {
-            console.error('Failed to connect to Spotify player');
+        // Not Ready
+        player.addListener('not_ready', ({ device_id }) => {
+            console.log('Device ID is not ready for playback', device_id);
+            showError('Player is not ready for playback');
+            // Try to reconnect
+            setTimeout(initializePlayer, 3000);
+        });
+        
+        // Connect to the player with a timeout
+        const connectPromise = player.connect();
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Connection timeout')), 10000)
+        );
+        
+        try {
+            const connected = await Promise.race([connectPromise, timeoutPromise]);
+            if (!connected) {
+                throw new Error('Failed to connect to Spotify player');
+            }
+        } catch (error) {
+            console.error('Connection error:', error);
+            if (error.message.includes('timeout') || error.message.includes('WebSocket')) {
+                // Try fallback connection method
+                console.log('Attempting fallback connection method...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                return initializePlayer();
+            }
+            throw error;
         }
         
     } catch (error) {
-        console.error('Error initializing Spotify player:', error);
+        console.error('Failed to initialize player:', error);
+        showError(`Failed to initialize player: ${error.message}`);
+        
+        // Retry with exponential backoff
+        const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30s delay
+        console.log(`Retrying in ${retryDelay}ms...`);
+        retryCount++;
+        
+        setTimeout(initializePlayer, retryDelay);
     }
 }
 
