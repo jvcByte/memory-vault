@@ -168,14 +168,18 @@
                             <button id="nextBtn" class="control-btn" title="Next"><i class="fas fa-step-forward"></i></button>
                         </div>
                         <div class="progress-container">
-                            <div class="progress"></div>
+                            <span id="currentTime">0:00</span>
+                            <div class="progress-bar">
+                                <div class="progress"></div>
+                            </div>
+                            <span id="duration">3:13</span>
                         </div>
                     </div>
-                    <div class="playlist">
-                        <h3>Playlist</h3>
-                        <ul id="playlist">
+                    <div class="playlist-container">
+                        <h3>Our Song</h3>
+                        <div class="playlist" id="playlist">
                             <!-- Songs will be added by JavaScript -->
-                        </ul>
+                        </div>
                     </div>
                 </div>
             </div>
