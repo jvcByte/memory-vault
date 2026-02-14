@@ -138,32 +138,91 @@ let progressInterval;
 let playlistTracks = [];
 let filteredTracks = [];
 
-// Check for access token in URL
-const urlParams = new URLSearchParams(window.location.hash.substring(1));
-const token = urlParams.get('access_token');
-const expiresIn = urlParams.get('expires_in');
+// Check for authorization code in URL first
+const urlParams = new URLSearchParams(window.location.search);
+const code = urlParams.get('code');
 
-if (token) {
-    // Remove token from URL
-    window.history.pushState({}, document.title, window.location.pathname);
+if (code) {
+    // Hide login button and show loading state
+    if (authMessage) authMessage.style.display = 'none';
     
-    // Store token and related data
-    accessToken = token;
-    localStorage.setItem('spotify_access_token', token);
-    localStorage.setItem('spotify_token_timestamp', Date.now());
-    localStorage.setItem('spotify_token_expires_in', expiresIn || '3600');
-    
-    // Initialize player
-    initializePlayer();
-} else {
-    // Check for token in localStorage
-    const storedToken = localStorage.getItem('spotify_access_token');
-    if (storedToken) {
-        accessToken = storedToken;
-        initializePlayer();
+    // Check if we already have a token
+    const tokenData = JSON.parse(localStorage.getItem('spotify_token_data'));
+    if (!tokenData || !tokenData.access_token) {
+        // No token found, handle the code exchange
+        handleCodeExchange(code);
     } else {
-        // Show login button
-        authMessage.style.display = 'block';
+        // We have a token, initialize the player
+        document.querySelector('.spotify-player').style.display = 'block';
+        if (authMessage) authMessage.style.display = 'none';
+        setupPlayer(tokenData.access_token);
+    }
+} else {
+    // No code in URL, check for existing token
+    const tokenData = JSON.parse(localStorage.getItem('spotify_token_data'));
+    if (tokenData && tokenData.access_token) {
+        // We have a token, initialize the player
+        document.querySelector('.spotify-player').style.display = 'block';
+        if (authMessage) authMessage.style.display = 'none';
+        setupPlayer(tokenData.access_token);
+    } else {
+        // No token found, show login button
+        if (authMessage) authMessage.style.display = 'block';
+    }
+}
+
+// Handle the OAuth code exchange
+async function handleCodeExchange(code) {
+    try {
+        const codeVerifier = localStorage.getItem('code_verifier');
+        if (!codeVerifier) throw new Error('No code verifier found');
+        
+        const response = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`)
+            },
+            body: new URLSearchParams({
+                client_id: clientId,
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: redirectUri,
+                code_verifier: codeVerifier
+            })
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to get access token: ${response.status} - ${errorText}`);
+        }
+        
+        const tokenData = await response.json();
+        
+        // Store token data with timestamp
+        const tokenDataToStore = {
+            ...tokenData,
+            timestamp: Date.now()
+        };
+        
+        localStorage.setItem('spotify_token_data', JSON.stringify(tokenDataToStore));
+        
+        // Clear the code from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Show player and hide auth message
+        document.querySelector('.spotify-player').style.display = 'block';
+        if (authMessage) authMessage.style.display = 'none';
+        
+        // Initialize player with new token
+        setupPlayer(tokenData.access_token);
+        
+    } catch (error) {
+        console.error('Error during authentication:', error);
+        if (authMessage) {
+            authMessage.innerHTML = `<p>Error during authentication. Please try again.</p><p>${error.message}</p>`;
+            authMessage.style.display = 'block';
+        }
     }
 }
 
