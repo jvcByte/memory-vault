@@ -2,8 +2,7 @@
 const clientId = '1ce3893c730c480689dc13df6183f212';
 const redirectUri = 'https://valndinma.vercel.app/spotify.html';
 const authEndpoint = 'https://accounts.spotify.com/authorize';
-const responseType = 'token';
-const scopesArray = [
+const scopes = [
     'user-read-private',
     'user-read-email',
     'user-modify-playback-state',
@@ -17,8 +16,7 @@ const scopesArray = [
     'streaming',
     'user-library-read',
     'user-library-modify'
-];
-const scopes = scopesArray.join('%20');
+].join(' ');
 
 // Token handling is moved to the main flow below
 
@@ -81,15 +79,13 @@ if (token) {
 // Event Listeners
 if (loginBtn) {
     loginBtn.addEventListener('click', () => {
-        const params = new URLSearchParams({
-            client_id: clientId,
-            response_type: 'token',
-            redirect_uri: redirectUri,
-            scope: scopesArray.join(' '),
-            show_dialog: 'true'
-        });
-        
-        window.location.href = `${authEndpoint}?${params.toString()}`;
+        const authUrl = `${authEndpoint}?client_id=${clientId}` +
+            `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+            '&response_type=token' +
+            `&scope=${encodeURIComponent(scopes)}` +
+            '&show_dialog=true';
+            
+        window.location.href = authUrl;
     });
 }
 
