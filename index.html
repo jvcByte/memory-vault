@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <meta name="theme-color" content="#ff6b6b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>For My Valentine ❤️</title>
+    <link rel="apple-touch-icon" href="images/icon.png">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="slides-container">
+        <!-- Slide 1: Landing Page -->
+        <section class="slide active" id="landing">
+            <div class="hearts">
+                <i class="fas fa-heart"></i>
+                <i class="fas fa-heart"></i>
+                <i class="fas fa-heart"></i>
+            </div>
+            <div class="landing-content">
+                <h1>For My Beautiful <span class="highlight">Valentine</span></h1>
+                <p>Swipe up or tap to begin our journey ❤️</p>
+                <div class="scroll-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 2: Envelope -->
+        <section class="slide" id="envelope">
+            <div class="envelope-wrapper">
+                <div class="envelope">
+                    <div class="letter">
+                        <div class="text">
+                            <strong>To My Love,</strong>
+                            <p>Click to open this special letter...</p>
+                        </div>
+                    </div>
+                    <div class="heart">❤️</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 3: Letter Content -->
+        <section class="slide letter-content" id="letter">
+            <div class="letter-paper">
+                <div class="letter-header">
+                    <span class="date">February 14, 2024</span>
+                    <h2>My Dearest Love,</h2>
+                </div>
+                <div class="letter-body">
+                    <p>From the moment we met, my life has been filled with so much joy and love. Every day with you feels like a beautiful dream I never want to wake up from.</p>
+                    <p>You are the most amazing person I've ever known - your smile brightens my darkest days, your laugh is my favorite melody, and your love is my greatest treasure.</p>
+                    <p>On this special day, I want you to know how much you mean to me. You are my everything, my today and all of my tomorrows.</p>
+                    <p>With all my love,</p>
+                    <p class="signature">Forever Yours</p>
+                </div>
+                <div class="letter-footer">
+                    <p>Swipe to continue →</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 4: Be My Valentine -->
+        <section class="slide" id="valentine">
+            <div class="valentine-content">
+                <h2>Will You Be My Valentine?</h2>
+                <div class="hearts-animation">
+                    <i class="fas fa-heart"></i>
+                    <i class="fas fa-heart"></i>
+                    <i class="fas fa-heart"></i>
+                </div>
+                <div class="buttons">
+                    <button id="yesBtn" class="btn">Yes! ❤️</button>
+                    <button id="noBtn" class="btn ghost">Maybe... 😊</button>
+                </div>
+                <div id="response" class="response-message"></div>
+            </div>
+        </section>
+
+        <!-- Slide 5: Photo Album -->
+        <section class="slide" id="album">
+            <div class="album-container">
+                <h2>Our Beautiful Memories</h2>
+                <div class="photo-grid">
+                    <div class="photo" style="background-image: url('images/photo1.jpg');"></div>
+                    <div class="photo" style="background-image: url('images/photo2.jpg');"></div>
+                    <div class="photo" style="background-image: url('images/photo3.jpg');"></div>
+                    <div class="photo" style="background-image: url('images/photo4.jpg');"></div>
+                </div>
+                <p class="album-note">Each photo is a precious memory I'll cherish forever</p>
+            </div>
+        </section>
+
+        <!-- Slide 6: Music -->
+        <section class="slide" id="music">
+            <div class="music-player">
+                <h2>Our Song</h2>
+                <div class="album-art">
+                    <img src="images/album-cover.jpg" alt="Our Song">
+                </div>
+                <div class="player-controls">
+                    <button id="prevBtn" class="control-btn"><i class="fas fa-step-backward"></i></button>
+                    <button id="playBtn" class="control-btn play"><i class="fas fa-play"></i></button>
+                    <button id="nextBtn" class="control-btn"><i class="fas fa-step-forward"></i></button>
+                </div>
+                <div class="song-info">
+                    <h3 id="songTitle">Perfect</h3>
+                    <p id="artist">Ed Sheeran</p>
+                </div>
+                <div class="progress-container">
+                    <div class="progress"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Navigation Dots -->
+        <div class="nav-dots">
+            <span class="dot active" data-slide="0"></span>
+            <span class="dot" data-slide="1"></span>
+            <span class="dot" data-slide="2"></span>
+            <span class="dot" data-slide="3"></span>
+            <span class="dot" data-slide="4"></span>
+            <span class="dot" data-slide="5"></span>
+        </div>
+
+        <!-- Navigation Arrows -->
+        <button class="nav-arrow prev"><i class="fas fa-chevron-up"></i></button>
+        <button class="nav-arrow next"><i class="fas fa-chevron-down"></i></button>
+    </div>
+
+    <audio id="bgMusic" loop>
+        <source src="music/our-song.mp3" type="audio/mp3">
+        Your browser does not support the audio element.
+    </audio>
+
+    <script src="js/main.js"></script>
+
+    <section id="home" class="hero">
+        <div class="hero-content">
+            <h1>Our Love Story</h1>
+            <p>Every love story is beautiful, but ours is my favorite</p>
+        </div>
+    </section>
+
+    <section id="timeline" class="timeline-section">
+        <h2>Our Journey Together</h2>
+        <div class="timeline">
+            <div class="timeline-container left">
+                <div class="content">
+                    <h3>First Meet</h3>
+                    <div class="date">June 12, 2022</div>
+                    <p>The day our eyes met and my heart skipped a beat. I knew there was something special about you.</p>
+                    <div class="timeline-img"></div>
+                </div>
+            </div>
+            <div class="timeline-container right">
+                <div class="content">
+                    <h3>First Date</h3>
+                    <div class="date">June 20, 2022</div>
+                    <p>Dinner under the stars, endless conversations, and the moment I realized I was falling for you.</p>
+                    <div class="timeline-img"></div>
+                </div>
+            </div>
+            <div class="timeline-container left">
+                <div class="content">
+                    <h3>First Vacation</h3>
+                    <div class="date">August 5, 2022</div>
+                    <p>Our first trip together, creating memories that will last a lifetime.</p>
+                    <div class="timeline-img"></div>
+                </div>
+            </div>
+            <div class="timeline-container right">
+                <div class="content">
+                    <h3>Our First Year</h3>
+                    <div class="date">June 12, 2023</div>
+                    <p>365 days of love, laughter, and growing together. Here's to many more!</p>
+                    <div class="timeline-img"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="gallery" class="gallery-section">
+        <h2>Our Special Moments</h2>
+        <div class="gallery-grid">
+            <!-- Images will be added here -->
+            <div class="gallery-item">
+                <div class="gallery-img"></div>
+                <p>Our first photo together</p>
+            </div>
+            <div class="gallery-item">
+                <div class="gallery-img"></div>
+                <p>Beach day</p>
+            </div>
+            <div class="gallery-item">
+                <div class="gallery-img"></div>
+                <p>Date night</p>
+            </div>
+            <div class="gallery-item">
+                <div class="gallery-img"></div>
+                <p>Celebrating together</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="love" class="reasons-section">
+        <h2>Reasons Why I Love You</h2>
+        <div class="reasons-container">
+            <div class="reason">
+                <i class="fas fa-heart"></i>
+                <p>Your beautiful smile that lights up my world</p>
+            </div>
+            <div class="reason">
+                <i class="fas fa-heart"></i>
+                <p>The way you make me laugh like no one else can</p>
+            </div>
+            <div class="reason">
+                <i class="fas fa-heart"></i>
+                <p>Your kindness and compassion for others</p>
+            </div>
+            <div class="reason">
+                <i class="fas fa-heart"></i>
+                <p>Your strength and determination</p>
+            </div>
+            <div class="reason">
+                <i class="fas fa-heart"></i>
+                <p>The way you understand me without words</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>Made with <i class="fas fa-heart"></i> for you, my love</p>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
