@@ -2,6 +2,7 @@
 const clientId = '1ce3893c730c480689dc13df6183f212';
 const redirectUri = 'https://valndinma.vercel.app/spotify.html';
 const authEndpoint = 'https://accounts.spotify.com/authorize';
+const responseType = 'token';
 const scopes = [
     'user-read-private',
     'user-read-email',
@@ -16,7 +17,9 @@ const scopes = [
     'streaming',
     'user-library-read',
     'user-library-modify'
-];
+].join('%20');
+
+// Token handling is moved to the main flow below
 
 // DOM Elements
 const loginBtn = document.getElementById('loginBtn');
@@ -45,18 +48,20 @@ let progressInterval;
 let playlistTracks = [];
 let filteredTracks = [];
 
-// Check for access token in URL hash
-const hash = window.location.hash.substring(1);
-const params = new URLSearchParams(hash);
-const token = params.get('access_token');
+// Check for access token in URL
+const urlParams = new URLSearchParams(window.location.hash.substring(1));
+const token = urlParams.get('access_token');
+const expiresIn = urlParams.get('expires_in');
 
 if (token) {
     // Remove token from URL
     window.history.pushState({}, document.title, window.location.pathname);
     
-    // Store token
+    // Store token and related data
     accessToken = token;
     localStorage.setItem('spotify_access_token', token);
+    localStorage.setItem('spotify_token_timestamp', Date.now());
+    localStorage.setItem('spotify_token_expires_in', expiresIn || '3600');
     
     // Initialize player
     initializePlayer();
@@ -100,6 +105,12 @@ if (searchBtn && searchInput) {
 
 // Initialize Spotify Web Playback SDK
 function initializePlayer() {
+    const accessToken = window.localStorage.getItem('spotify_access_token');
+    if (!accessToken) {
+        // If no token, redirect to Spotify authorization
+        window.location = `${authEndpoint}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=${responseType}&show_dialog=true`;
+        return;
+    }
     // Hide auth message and show player
     authMessage.style.display = 'none';
     spotifyPlayer.style.display = 'block';
