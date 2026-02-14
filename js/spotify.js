@@ -405,8 +405,21 @@ async function initializePlayer() {
     }
 }
 
+// Track playlist loading retries
+let playlistRetryCount = 0;
+const MAX_PLAYLIST_RETRIES = 3;
+
 // Load user's playlists
 async function loadUserPlaylists() {
+    const playlistContainer = document.getElementById('playlist');
+    
+    if (!playlistContainer) {
+        console.error('Playlist container not found');
+        return;
+    }
+    
+    // Show loading state
+    playlistContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading your playlists...</div>';
     try {
         const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=20', {
             headers: {
@@ -416,37 +429,58 @@ async function loadUserPlaylists() {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error?.message || 'Failed to load playlists');
+            // If unauthorized, clear token and restart auth
+            if (response.status === 401) {
+                localStorage.removeItem('spotify_token_data');
+                throw new Error('Session expired. Please log in again.');
+            }
+            throw new Error(error.error?.message || `Failed to load playlists (${response.status})`);
         }
 
         const data = await response.json();
-        const playlistContainer = document.getElementById('playlist');
         
-        if (!playlistContainer) {
-            console.error('Playlist container not found');
-            return;
+        if (!data || !Array.isArray(data.items)) {
+            throw new Error('Invalid response format from Spotify API');
         }
 
         if (data.items.length === 0) {
-            playlistContainer.innerHTML = '<p>No playlists found. Create some playlists on your Spotify account.</p>';
+            playlistContainer.innerHTML = `
+                <div class="no-playlists">
+                    <i class="fas fa-music"></i>
+                    <p>No playlists found</p>
+                    <p>Create some playlists on your Spotify account or try refreshing the page.</p>
+                    <button class="btn spotify-btn" onclick="loadUserPlaylists()">
+                        <i class="fas fa-sync-alt"></i> Try Again
+                    </button>
+                </div>`;
             return;
         }
 
-        // Create playlist HTML
-        const playlistsHTML = data.items.map(playlist => `
-            <div class="playlist-item" data-playlist-id="${playlist.id}">
-                <div class="playlist-cover">
-                    ${playlist.images[0] ? 
-                        `<img src="${playlist.images[0].url}" alt="${playlist.name}">` : 
-                        '<div class="no-image"><i class="fas fa-music"></i></div>'
-                    }
-                </div>
-                <div class="playlist-info">
-                    <h3>${playlist.name}</h3>
-                    <p>${playlist.tracks.total} tracks</p>
-                </div>
-            </div>
-        `).join('');
+        // Filter out any invalid playlists and create HTML
+        const playlistsHTML = data.items
+            .filter(playlist => playlist && playlist.id) // Ensure playlist exists and has an ID
+            .map(playlist => {
+                const name = playlist.name || 'Unnamed Playlist';
+                const trackCount = playlist.tracks?.total || 0;
+                const imageUrl = playlist.images?.[0]?.url;
+                const trackText = trackCount === 1 ? '1 track' : `${trackCount} tracks`;
+                
+                return `
+                    <div class="playlist-item" data-playlist-id="${playlist.id}">
+                        <div class="playlist-cover">
+                            ${imageUrl ? 
+                                `<img src="${imageUrl}" alt="${name}">` : 
+                                '<div class="no-image"><i class="fas fa-music"></i></div>'
+                            }
+                        </div>
+                        <div class="playlist-info">
+                            <h3>${name}</h3>
+                            <p>${trackText}</p>
+                        </div>
+                    </div>
+                `;
+            })
+            .join('');
 
         playlistContainer.innerHTML = `
             <h2>Your Playlists</h2>
@@ -465,14 +499,64 @@ async function loadUserPlaylists() {
 
     } catch (error) {
         console.error('Error loading playlists:', error);
-        showError(`Failed to load playlists: ${error.message}`);
+        
+        // Clear retry count if we get a non-retryable error
+        if (error.message.includes('expired') || error.message.includes('401')) {
+            playlistRetryCount = 0;
+        }
+        
+        // Show error message with retry option if we haven't exceeded max retries
+        if (playlistRetryCount < MAX_PLAYLIST_RETRIES) {
+            playlistRetryCount++;
+            const retryDelay = Math.min(1000 * Math.pow(2, playlistRetryCount), 10000); // Max 10s delay
+            
+            if (playlistContainer) {
+                playlistContainer.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>${error.message || 'Failed to load playlists'}</p>
+                        <p>Retrying in ${retryDelay/1000} seconds... (${playlistRetryCount}/${MAX_PLAYLIST_RETRIES})</p>
+                        <button class="btn spotify-btn" onclick="loadUserPlaylists()">
+                            <i class="fas fa-sync-alt"></i> Retry Now
+                        </button>
+                    </div>`;
+            }
+            
+            // Auto-retry after delay
+            setTimeout(loadUserPlaylists, retryDelay);
+        } else {
+            // Max retries exceeded
+            if (playlistContainer) {
+                playlistContainer.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Failed to load playlists after ${MAX_PLAYLIST_RETRIES} attempts</p>
+                        <p>${error.message || 'Please check your connection and try again.'}</p>
+                        <div style="margin-top: 20px;">
+                            <button class="btn spotify-btn" onclick="loadUserPlaylists()">
+                                <i class="fas fa-redo"></i> Try Again
+                            </button>
+                            <button class="btn" onclick="handleLogin()" style="margin-left: 10px; background: #333;">
+                                <i class="fab fa-spotify"></i> Reconnect Spotify
+                            </button>
+                        </div>
+                    </div>`;
+            }
+            
+            // Reset retry counter after showing final error
+            playlistRetryCount = 0;
+        }
     }
 }
 
 // Load tracks from a specific playlist
 async function loadPlaylistTracks(playlistId) {
     try {
-        const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+        if (!playlistId) {
+            throw new Error('No playlist ID provided');
+        }
+
+        const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=50`, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`
             }
@@ -484,11 +568,23 @@ async function loadPlaylistTracks(playlistId) {
         }
 
         const data = await response.json();
-        const tracks = data.items.map(item => item.track).filter(track => track);
         
-        // Here you can implement what happens when a playlist is selected
-        // For example, you might want to play the first track:
-        if (tracks.length > 0 && player) {
+        // Safely extract tracks, filtering out any null/undefined items
+        const tracks = data.items
+            .map(item => item?.track)
+            .filter(track => track && track.uri);
+        
+        if (tracks.length === 0) {
+            throw new Error('No playable tracks found in this playlist');
+        }
+        
+        // Update UI to show loading state
+        const playlistContainer = document.getElementById('playlist');
+        if (playlistContainer) {
+            playlistContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading tracks...</div>';
+        }
+
+        if (player) {
             player.getCurrentState().then(state => {
                 if (!state) {
                     // Player is not active, start playing the first track
