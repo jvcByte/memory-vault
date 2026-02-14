@@ -936,15 +936,14 @@ body {
     border: 2px solid transparent;
 }
 
-/* Spotify dot in navigation */
-.nav-dots .spotify-dot {
+/* Navigation Icons */
+.nav-dots .nav-icon {
     display: flex;
     align-items: center;
     justify-content: center;
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: #1DB954;
     color: white;
     text-decoration: none;
     transition: all 0.3s ease;
@@ -953,12 +952,30 @@ body {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
-.nav-dots .spotify-dot:hover {
+.nav-dots .nav-icon:hover {
     transform: scale(1.1);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+/* Spotify icon specific styles */
+.nav-dots .nav-icon[href*="spotify"] {
+    background: #1DB954;
+}
+
+.nav-dots .nav-icon[href*="spotify"]:hover {
     box-shadow: 0 0 15px rgba(29, 185, 84, 0.6);
 }
 
-.nav-dots .spotify-dot i {
+/* Music note icon specific styles */
+.nav-dots .nav-icon[href*="suggestions"] {
+    background: #9c27b0;
+}
+
+.nav-dots .nav-icon[href*="suggestions"]:hover {
+    box-shadow: 0 0 15px rgba(156, 39, 176, 0.6);
+}
+
+.nav-dots .nav-icon i {
     animation: pulse 2s infinite;
 }
 
