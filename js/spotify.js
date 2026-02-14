@@ -231,9 +231,39 @@ async function verifyToken(token) {
     }
 }
 
+// Check for browser extensions that might block WebSockets
+function checkForBlockingExtensions() {
+    const warningEl = document.getElementById('browserWarning');
+    if (!warningEl) return;
+    
+    // Check if WebSocket is being blocked
+    let isWebSocketBlocked = false;
+    try {
+        const testWs = new WebSocket('wss://dealer.g2.spotify.com');
+        testWs.onerror = () => {
+            isWebSocketBlocked = true;
+            console.warn('WebSocket connection is being blocked');
+            warningEl.style.display = 'block';
+        };
+        testWs.close();
+    } catch (e) {
+        isWebSocketBlocked = true;
+        console.warn('WebSocket test failed:', e);
+        warningEl.style.display = 'block';
+    }
+    
+    return isWebSocketBlocked;
+}
+
 // Initialize the Spotify Web Playback SDK
 async function initializePlayer() {
     if (isPlayerInitialized) return;
+    
+    // Check for blocking extensions
+    const isBlocked = checkForBlockingExtensions();
+    if (isBlocked) {
+        console.warn('Blocking extensions detected. Player may not work correctly.');
+    }
     
     // Check if Web Playback SDK is ready
     if (!window.Spotify) {
@@ -376,6 +406,117 @@ async function initializePlayer() {
 }
 
 // Load user's playlists
+async function loadUserPlaylists() {
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=20', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'Failed to load playlists');
+        }
+
+        const data = await response.json();
+        const playlistContainer = document.getElementById('playlist');
+        
+        if (!playlistContainer) {
+            console.error('Playlist container not found');
+            return;
+        }
+
+        if (data.items.length === 0) {
+            playlistContainer.innerHTML = '<p>No playlists found. Create some playlists on your Spotify account.</p>';
+            return;
+        }
+
+        // Create playlist HTML
+        const playlistsHTML = data.items.map(playlist => `
+            <div class="playlist-item" data-playlist-id="${playlist.id}">
+                <div class="playlist-cover">
+                    ${playlist.images[0] ? 
+                        `<img src="${playlist.images[0].url}" alt="${playlist.name}">` : 
+                        '<div class="no-image"><i class="fas fa-music"></i></div>'
+                    }
+                </div>
+                <div class="playlist-info">
+                    <h3>${playlist.name}</h3>
+                    <p>${playlist.tracks.total} tracks</p>
+                </div>
+            </div>
+        `).join('');
+
+        playlistContainer.innerHTML = `
+            <h2>Your Playlists</h2>
+            <div class="playlist-grid">
+                ${playlistsHTML}
+            </div>
+        `;
+
+        // Add click handlers for playlist items
+        document.querySelectorAll('.playlist-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const playlistId = item.getAttribute('data-playlist-id');
+                loadPlaylistTracks(playlistId);
+            });
+        });
+
+    } catch (error) {
+        console.error('Error loading playlists:', error);
+        showError(`Failed to load playlists: ${error.message}`);
+    }
+}
+
+// Load tracks from a specific playlist
+async function loadPlaylistTracks(playlistId) {
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'Failed to load playlist tracks');
+        }
+
+        const data = await response.json();
+        const tracks = data.items.map(item => item.track).filter(track => track);
+        
+        // Here you can implement what happens when a playlist is selected
+        // For example, you might want to play the first track:
+        if (tracks.length > 0 && player) {
+            player.getCurrentState().then(state => {
+                if (!state) {
+                    // Player is not active, start playing the first track
+                    player.activateElement().then(() => {
+                        const trackUri = tracks[0].uri;
+                        player.start({
+                            context_uri: `spotify:playlist:${playlistId}`,
+                            offset: { position: 0 }
+                        });
+                    });
+                } else {
+                    // Player is active, just change the track
+                    const trackUri = tracks[0].uri;
+                    player.start({
+                        context_uri: `spotify:playlist:${playlistId}`,
+                        offset: { position: 0 }
+                    });
+                }
+            });
+        }
+
+    } catch (error) {
+        console.error('Error loading playlist tracks:', error);
+        showError(`Failed to load playlist: ${error.message}`);
+    }
+}
+
+// Load a specific playlist (kept for backward compatibility)
 async function loadPlaylist() {
     try {
         const response = await fetch('https://api.spotify.com/v1/me/playlists', {

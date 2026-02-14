@@ -6,6 +6,7 @@
     <title>Our Playlist - Memory Vault</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/spotify.css">
+    <link rel="stylesheet" href="css/playlist.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
@@ -51,11 +52,23 @@
             </div>
         </div>
         
-        <div class="auth-message" id="authMessage">
-            <p>Please log in with Spotify to access the playlist</p>
-            <button id="loginBtn" class="btn spotify-btn">
-                <i class="fab fa-spotify"></i> Connect with Spotify
-            </button>
+        <div class="container">
+            <div id="browserWarning" class="browser-warning" style="display: none; background: #ffeb3b; color: #000; padding: 10px; margin: 10px 0; border-radius: 4px;">
+                <p><strong>Browser Extension Detected</strong></p>
+                <p>It looks like you have an ad blocker or privacy extension that's interfering with the Spotify player. Please disable it for this site or try in a different browser.</p>
+                <p>Required domains to whitelist:</p>
+                <ul>
+                    <li>*.spotify.com</li>
+                    <li>*.scdn.co</li>
+                    <li>apresolve.spotify.com</li>
+                </ul>
+            </div>
+            <div id="authMessage" class="auth-message">
+                <p>Please log in with Spotify to access the playlist</p>
+                <button id="loginBtn" class="btn spotify-btn">
+                    <i class="fab fa-spotify"></i> Connect with Spotify
+                </button>
+            </div>
         </div>
     </div>
     
