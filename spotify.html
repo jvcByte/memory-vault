@@ -59,8 +59,18 @@
         </div>
     </div>
     
-    <!-- Load Spotify Web Playback SDK -->
+    <!-- Load the Spotify Web Playback SDK -->
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
-    <script src="js/spotify.js" type="module"></script>
+    
+    <!-- Load our application code -->
+    <script src="js/spotify-new.js"></script>
+    
+    <script>
+        // This function will be called by the Spotify Web Playback SDK when it's ready
+        window.onSpotifyWebPlaybackSDKReady = () => {
+            console.log('Spotify Web Playback SDK is ready!');
+            // The SDK is ready, we'll handle initialization in spotify-new.js
+        };
+    </script>
 </body>
 </html>
