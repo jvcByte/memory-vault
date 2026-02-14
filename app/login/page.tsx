@@ -1,13 +1,24 @@
 'use client'
 
-import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { useState, useEffect } from 'react'
+import { signIn, useSession } from 'next-auth/react'
+import { useSearchParams } from 'next/navigation'
 import { ALLOWED_EMAIL } from '@/lib/config'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const { status } = useSession()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl') || '/'
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (status === 'authenticated') {
+      window.location.href = callbackUrl
+    }
+  }, [status, callbackUrl])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,18 +32,24 @@ export default function LoginPage() {
       return
     }
 
-    const result = await signIn('email', {
-      email,
-      redirect: false,
-      callbackUrl: '/',
-    })
+    try {
+      const result = await signIn('email', {
+        email,
+        redirect: false,
+        callbackUrl,
+      })
 
-    if (result?.error) {
-      setMessage('Error sending email. Please try again.')
-    } else {
-      setMessage('Check your email for the magic link!')
+      if (result?.error) {
+        setMessage(result.error || 'Error sending email. Please try again.')
+      } else {
+        setMessage('Check your email for the magic link!')
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      setMessage('An unexpected error occurred. Please try again.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
