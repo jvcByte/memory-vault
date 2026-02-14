@@ -233,36 +233,88 @@ async function verifyToken(token) {
 
 // Check for browser extensions that might block WebSockets
 function checkForBlockingExtensions() {
-    const warningEl = document.getElementById('browserWarning');
-    if (!warningEl) return;
+    // Try to detect common blocking extensions
+    const extensions = {
+        'Privacy Badger': window.hasOwnProperty('webkitRequestAnimationFrame') && !window.hasOwnProperty('chrome'),
+        'uBlock Origin': window.navigator.userAgent.includes(' uBlock') || document.documentElement.getAttribute('ub-h') !== null,
+        'AdBlock Plus': typeof window.AdBlock !== 'undefined' || document.getElementById('ads-adblock-check'),
+        'Ghostery': typeof window.Ghostery !== 'undefined',
+        'Disconnect': typeof window.Disconnect !== 'undefined',
+        'DuckDuckGo Privacy Essentials': typeof window.duckduckgo !== 'undefined'
+    };
     
-    // Check if WebSocket is being blocked
-    let isWebSocketBlocked = false;
-    try {
-        const testWs = new WebSocket('wss://dealer.g2.spotify.com');
-        testWs.onerror = () => {
-            isWebSocketBlocked = true;
-            console.warn('WebSocket connection is being blocked');
-            warningEl.style.display = 'block';
-        };
-        testWs.close();
-    } catch (e) {
-        isWebSocketBlocked = true;
-        console.warn('WebSocket test failed:', e);
-        warningEl.style.display = 'block';
-    }
-    
-    return isWebSocketBlocked;
+    // Return the names of detected blocking extensions
+    return Object.entries(extensions)
+        .filter(([_, detected]) => detected)
+        .map(([name]) => name);
 }
 
 // Initialize the Spotify Web Playback SDK
 async function initializePlayer() {
     if (isPlayerInitialized) return;
-    
+
     // Check for blocking extensions
-    const isBlocked = checkForBlockingExtensions();
-    if (isBlocked) {
-        console.warn('Blocking extensions detected. Player may not work correctly.');
+    const blockingExtensions = checkForBlockingExtensions();
+    
+    // Show warning if blocking extensions are detected
+    if (blockingExtensions.length > 0) {
+        console.warn('Blocking extensions detected:', blockingExtensions);
+        showError(`<strong>Warning:</strong> The following extensions may block Spotify's WebSocket connection:<br>${blockingExtensions.join(', ')}<br><br>Please disable them for this site and refresh the page.`, 'warning');
+    }
+    
+    // Test WebSocket connection
+    let isWebSocketBlocked = false;
+    try {
+        const testWs = new WebSocket('wss://dealer.g2.spotify.com');
+        await new Promise((resolve, reject) => {
+            testWs.onopen = () => {
+                testWs.close();
+                resolve();
+            };
+            testWs.onerror = () => {
+                isWebSocketBlocked = true;
+                testWs.close();
+                resolve();
+            };
+            setTimeout(() => {
+                isWebSocketBlocked = true;
+                testWs.close();
+                resolve();
+            }, 2000);
+        });
+    } catch (e) {
+        isWebSocketBlocked = true;
+    }
+    
+    if (isWebSocketBlocked) {
+        const errorMsg = `
+            <div class="error-message">
+                <i class="fas fa-plug"></i>
+                <h3>Connection Blocked</h3>
+                <p>We couldn't establish a connection to Spotify's servers. This is usually caused by:</p>
+                <ul>
+                    <li>Browser extensions (like uBlock, Privacy Badger, or AdBlock)</li>
+                    <li>Firewall or network restrictions</li>
+                    <li>Corporate or school networks</li>
+                </ul>
+                <div class="mt-3">
+                    <button class="btn spotify-btn" onclick="window.location.reload()">
+                        <i class="fas fa-sync-alt"></i> Reload Page
+                    </button>
+                    <button class="btn" onclick="handleLogin()" style="margin-left: 10px; background: #333;">
+                        <i class="fab fa-spotify"></i> Reconnect Spotify
+                    </button>
+                </div>
+                <div class="mt-3">
+                    <details>
+                        <summary>Advanced: Try in a new incognito window</summary>
+                        <p class="mt-2">1. Open an incognito/private window<br>2. Disable all extensions<br>3. Try logging in again</p>
+                    </details>
+                </div>
+            </div>
+        `;
+        showError(errorMsg, 'error');
+        return;
     }
     
     // Check if Web Playback SDK is ready
