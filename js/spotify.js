@@ -1,6 +1,6 @@
 // Spotify Web API configuration
 const clientId = '1ce3893c730c480689dc13df6183f212';
-const redirectUri = 'https://valndinma.vercel.app/';
+const redirectUri = 'https://valndinma.vercel.app/spotify.html';
 const authEndpoint = 'https://accounts.spotify.com/authorize';
 const scopes = [
     'user-read-private',
