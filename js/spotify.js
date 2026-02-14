@@ -471,9 +471,15 @@ async function init() {
 }
 
 // Event Listeners
-if (loginBtn) {
-    loginBtn.addEventListener('click', handleLogin);
-}
+document.addEventListener('DOMContentLoaded', () => {
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', handleLogin);
+        console.log('Login button event listener added');
+    } else {
+        console.error('Login button not found');
+    }
+});
 
 if (playBtn) {
     playBtn.addEventListener('click', togglePlay);
@@ -534,7 +540,23 @@ function filterTracks() {
 }
 
 // Start the app
-init();
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize the app
+    init();
+
+    // Add click handler for login button
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', (e) => {
+            console.log('Login button clicked');
+            handleLogin().catch(error => {
+                console.error('Login error:', error);
+            });
+        });
+    } else {
+        console.error('Login button not found in DOM');
+    }
+});
 
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
