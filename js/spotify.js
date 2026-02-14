@@ -145,8 +145,32 @@ async function initializePlayer() {
     
     // Check if Web Playback SDK is ready
     if (!window.Spotify) {
-        console.error('Spotify Web Playback SDK not loaded');
-        return;
+        console.log('Spotify Web Playback SDK not loaded yet, waiting...');
+        
+        // Wait for the SDK to be ready
+        if (!window.spotifySDKReady) {
+            await new Promise((resolve) => {
+                window.pendingSpotifyInit = resolve;
+                
+                // Set a timeout in case the SDK never loads
+                setTimeout(() => {
+                    if (window.pendingSpotifyInit) {
+                        console.error('Spotify Web Playback SDK loading timed out');
+                        window.pendingSpotifyInit = null;
+                        resolve();
+                    }
+                }, 10000); // 10 second timeout
+            });
+        }
+        
+        if (!window.Spotify) {
+            console.error('Spotify Web Playback SDK still not available');
+            if (authMessage) {
+                authMessage.innerHTML = 'Failed to load Spotify player. Please refresh the page and try again.';
+                authMessage.style.display = 'block';
+            }
+            return;
+        }
     }
     
     if (!accessToken) {
@@ -162,10 +186,18 @@ async function initializePlayer() {
             name: 'Memory Vault Player',
             getOAuthToken: cb => { 
                 console.log('Providing access token to player');
+                if (!accessToken) {
+                    console.error('No access token available, triggering re-authentication');
+                    handleLogin().catch(console.error);
+                    return;
+                }
                 cb(accessToken); 
             },
             volume: 0.5
         });
+        
+        // Add a small delay to help with WebSocket connection
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         isPlayerInitialized = true;
         

@@ -59,18 +59,38 @@
         </div>
     </div>
     
-    <!-- Load the Spotify Web Playback SDK -->
-    <script src="https://sdk.scdn.co/spotify-player.js"></script>
-    
-    <!-- Load our application code -->
-    <script src="js/spotify.js"></script>
-    
     <script>
         // This function will be called by the Spotify Web Playback SDK when it's ready
         window.onSpotifyWebPlaybackSDKReady = () => {
             console.log('Spotify Web Playback SDK is ready!');
-            // The SDK is ready, we'll handle initialization in spotify-new.js
+            // The SDK is ready, we'll handle initialization in spotify.js
+            window.spotifySDKReady = true;
+            
+            // If we have a pending init, trigger it
+            if (window.pendingSpotifyInit) {
+                window.pendingSpotifyInit();
+                window.pendingSpotifyInit = null;
+            }
         };
+        
+        // Load the Spotify Web Playback SDK
+        (function() {
+            const script = document.createElement('script');
+            script.src = 'https://sdk.scdn.co/spotify-player.js';
+            script.async = true;
+            script.onerror = function() {
+                console.error('Failed to load Spotify Web Playback SDK');
+                const authMessage = document.getElementById('authMessage');
+                if (authMessage) {
+                    authMessage.innerHTML = 'Failed to load Spotify player. Please refresh the page and try again.';
+                    authMessage.style.display = 'block';
+                }
+            };
+            document.body.appendChild(script);
+        })();
     </script>
+    
+    <!-- Load our application code -->
+    <script src="js/spotify.js"></script>
 </body>
 </html>
