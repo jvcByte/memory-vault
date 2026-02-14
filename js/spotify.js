@@ -1,7 +1,79 @@
 // Spotify Web API configuration
 const clientId = '1ce3893c730c480689dc13df6183f212';
+const clientSecret = 'd8a78f02d7094911b8534a6eafc80ff9'; // In production, this should be handled server-side
 const redirectUri = 'https://valndinma.vercel.app/spotify.html';
 const authEndpoint = 'https://accounts.spotify.com/authorize';
+const tokenEndpoint = 'https://accounts.spotify.com/api/token';
+let tokenRefreshTimeout = null;
+
+// Token management
+async function getAccessToken() {
+    const tokenData = JSON.parse(localStorage.getItem('spotify_token_data'));
+    
+    if (!tokenData) return null;
+    
+    // If token is expired or about to expire in the next 5 minutes, refresh it
+    if (Date.now() >= (tokenData.timestamp + (tokenData.expires_in * 1000) - 300000)) {
+        try {
+            const response = await fetch(tokenEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`)
+                },
+                body: new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    refresh_token: tokenData.refresh_token
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to refresh token');
+            }
+            
+            const newTokenData = await response.json();
+            const tokenDataToStore = {
+                ...newTokenData,
+                timestamp: Date.now(),
+                // Keep the original refresh token if a new one wasn't returned
+                refresh_token: newTokenData.refresh_token || tokenData.refresh_token
+            };
+            
+            localStorage.setItem('spotify_token_data', JSON.stringify(tokenDataToStore));
+            scheduleTokenRefresh(newTokenData.expires_in * 1000);
+            return tokenDataToStore.access_token;
+        } catch (error) {
+            console.error('Error refreshing token:', error);
+            logout();
+            return null;
+        }
+    }
+    
+    return tokenData.access_token;
+}
+
+// Schedule token refresh
+function scheduleTokenRefresh(expiresInMs) {
+    if (tokenRefreshTimeout) {
+        clearTimeout(tokenRefreshTimeout);
+    }
+    
+    // Refresh token 5 minutes before it expires
+    const refreshTime = expiresInMs - 300000;
+    tokenRefreshTimeout = setTimeout(() => {
+        getAccessToken();
+    }, refreshTime);
+}
+
+// Handle logout
+function logout() {
+    localStorage.removeItem('spotify_token_data');
+    if (tokenRefreshTimeout) {
+        clearTimeout(tokenRefreshTimeout);
+    }
+    window.location.href = 'spotify.html';
+}
+
 const scopes = [
     'user-read-private',
     'user-read-email',
@@ -17,6 +89,25 @@ const scopes = [
     'user-library-read',
     'user-library-modify'
 ].join(' ');
+
+// Generate a random string for PKCE
+function generateRandomString(length) {
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    return Array.from(crypto.getRandomValues(new Uint8Array(length)))
+        .map(byte => possible[byte % possible.length])
+        .join('');
+}
+
+// Generate PKCE code verifier and challenge
+async function generateCodeChallenge(verifier) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+}
 
 // Token handling is moved to the main flow below
 
@@ -78,12 +169,21 @@ if (token) {
 
 // Event Listeners
 if (loginBtn) {
-    loginBtn.addEventListener('click', () => {
-        const authUrl = `${authEndpoint}?client_id=${clientId}` +
+    loginBtn.addEventListener('click', async () => {
+        // Generate PKCE verifier and challenge
+        const codeVerifier = generateRandomString(128);
+        const codeChallenge = await generateCodeChallenge(codeVerifier);
+        
+        // Store the verifier for later use
+        localStorage.setItem('code_verifier', codeVerifier);
+        
+        const authUrl = `${authEndpoint}?` +
+            `client_id=${encodeURIComponent(clientId)}` +
+            `&response_type=code` +
             `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-            '&response_type=token' +
-            `&scope=${encodeURIComponent(scopes)}` +
-            '&show_dialog=true';
+            `&code_challenge_method=S256` +
+            `&code_challenge=${codeChallenge}` +
+            `&scope=${encodeURIComponent(scopes)}`;
             
         window.location.href = authUrl;
     });
@@ -112,21 +212,16 @@ if (searchBtn && searchInput) {
 function initializePlayer() {
     const accessToken = window.localStorage.getItem('spotify_access_token');
     if (!accessToken) {
-        // If no token, redirect to Spotify authorization
-        window.location = `${authEndpoint}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopesArray.join('%20')}&response_type=${responseType}&show_dialog=true`;
+        // Handle the redirect from Spotify after login
+        async function handleRedirect() {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            const error = params.get('error');
+        }
+        handleRedirect();
         return;
     }
-    // Hide auth message and show player
-    authMessage.style.display = 'none';
-    spotifyPlayer.style.display = 'block';
     
-    // Load the Spotify Web Playback SDK script
-    const script = document.createElement('script');
-    script.src = 'https://sdk.scdn.co/spotify-player.js';
-    script.async = true;
-    document.body.appendChild(script);
-    
-    // Wait for Spotify Web Playback SDK to be ready
     window.onSpotifyWebPlaybackSDKReady = () => {
         player = new window.Spotify.Player({
             name: 'Memory Vault Player',
@@ -213,23 +308,52 @@ async function fetchPlaylist() {
     }
 }
 
+// Make authenticated requests to Spotify API
+async function makeSpotifyRequest(url, options = {}) {
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+        throw new Error('Not authenticated');
+    }
+    
+    const response = await fetch(url, {
+        ...options,
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+    
+    if (response.status === 401) {
+        // Token might be expired, try to refresh
+        const newToken = await getAccessToken();
+        if (newToken) {
+            // Retry with new token
+            return makeSpotifyRequest(url, {
+                ...options,
+                headers: {
+                    ...options.headers,
+                    'Authorization': `Bearer ${newToken}`
+                }
+            });
+        }
+    }
+    
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || 'Request failed');
+    }
+    
+    return response.json();
+}
+
 // Fetch tracks from a playlist
 async function fetchPlaylistTracks(playlistId) {
     try {
-        const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch playlist tracks');
-        }
-        
-        const data = await response.json();
+        const data = await makeSpotifyRequest(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`);
         
         // Process tracks
-        playlistTracks = data.items
+        const playlistTracks = data.items
             .filter(item => item.track) // Filter out null tracks
             .map(item => ({
                 id: item.track.id,
