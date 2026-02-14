@@ -2,13 +2,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const slides = document.querySelectorAll('.slide');
     const dots = document.querySelectorAll('.dot');
-    const prevBtn = document.querySelector('.prev');
-    const nextBtn = document.querySelector('.next');
     const envelope = document.querySelector('.envelope');
+    const letter = document.querySelector('.letter');
     const yesBtn = document.getElementById('yesBtn');
     const noBtn = document.getElementById('noBtn');
-    const responseMessage = document.getElementById('response');
-    const playBtn = document.getElementById('playBtn');
+    const response = document.getElementById('response');
+    const prevBtn = document.querySelector('.prev');
+    const nextBtn = document.querySelector('.next');
+    const playBtnMusic = document.getElementById('playBtn');
     const prevBtnMusic = document.getElementById('prevBtn');
     const nextBtnMusic = document.getElementById('nextBtn');
     const progress = document.querySelector('.progress');
@@ -16,6 +17,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const audio = document.getElementById('bgMusic');
     const songTitle = document.getElementById('songTitle');
     const artist = document.getElementById('artist');
+    const albumArt = document.getElementById('albumArt');
+    const currentTimeEl = document.getElementById('currentTime');
+    const durationEl = document.getElementById('duration');
+    const playlistEl = document.getElementById('playlist');
 
     // Current slide index
     let currentSlide = 0;
@@ -27,46 +32,133 @@ document.addEventListener('DOMContentLoaded', function() {
     // Songs data with album art and duration
     const songs = [
         {
-            title: 'Perfect',
-            artist: 'Ed Sheeran',
-            src: 'music/perfect.mp3',
-            cover: 'images/album-cover.jpg',
-            duration: '4:23'
-        },
-        {
-            title: 'All of Me',
-            artist: 'John Legend',
-            src: 'music/all-of-me.mp3',
-            cover: 'images/album-cover2.jpg',
-            duration: '4:30'
-        },
-        {
-            title: 'A Thousand Years',
-            artist: 'Christina Perri',
-            src: 'music/a-thousand-years.mp3',
-            cover: 'images/album-cover3.jpg',
-            duration: '4:45'
-        },
-        {
-            title: 'Perfect Duet',
-            artist: 'Ed Sheeran & Beyoncé',
-            src: 'music/perfect-duet.mp3',
-            cover: 'images/album-cover4.jpg',
-            duration: '4:19'
-        },
-        {
-            title: 'Thinking Out Loud',
-            artist: 'Ed Sheeran',
-            src: 'music/thinking-out-loud.mp3',
-            cover: 'images/album-cover5.jpg',
-            duration: '4:41'
+            title: 'Beautiful Things',
+            artist: 'Benson Boone',
+            src: 'music/benson-boone-beautiful-things.mp3',
+            cover: 'images/songs/beautiful_things.jpeg',
+            duration: '3:13'
         }
     ];
-
+    
     let songIndex = 0;
     let isPlaying = false;
 
-    // Initialize the slideshow
+    // Format time in seconds to MM:SS
+    function formatTime(seconds) {
+        if (isNaN(seconds)) return '0:00';
+        const minutes = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    // Update progress bar
+    function updateProgress(e) {
+        if (isPlaying) {
+            const { duration, currentTime } = e.srcElement;
+            const progressPercent = (currentTime / duration) * 100;
+            progress.style.width = `${progressPercent}%`;
+            currentTimeEl.textContent = formatTime(currentTime);
+        }
+    }
+
+    // Set progress when clicking on progress bar
+    function setProgress(e) {
+        const width = this.clientWidth;
+        const clickX = e.offsetX;
+        const duration = audio.duration;
+        audio.currentTime = (clickX / width) * duration;
+    }
+
+    // Play song
+    function playSong() {
+        playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        playBtn.title = 'Pause';
+        isPlaying = true;
+        audio.play();
+    }
+
+    // Pause song
+    function pauseSong() {
+        playBtn.innerHTML = '<i class="fas fa-play"></i>';
+        playBtn.title = 'Play';
+        isPlaying = false;
+        audio.pause();
+    }
+
+    // Toggle play/pause
+    function togglePlay() {
+        if (isPlaying) {
+            pauseSong();
+        } else {
+            playSong();
+        }
+    }
+
+    // Load song into the player
+    function loadSong(song) {
+        songTitle.textContent = song.title;
+        artist.textContent = song.artist;
+        albumArt.src = song.cover;
+        audio.src = song.src;
+        durationEl.textContent = song.duration;
+        
+        // Update active song in playlist
+        updateActiveSong();
+    }
+
+    // Previous song
+    function prevSong() {
+        songIndex--;
+        if (songIndex < 0) {
+            songIndex = songs.length - 1;
+        }
+        loadSong(songs[songIndex]);
+        if (isPlaying) playSong();
+    }
+
+    // Next song
+    function nextSong() {
+        songIndex = (songIndex + 1) % songs.length;
+        loadSong(songs[songIndex]);
+        if (isPlaying) playSong();
+    }
+
+    // Update active song in playlist
+    function updateActiveSong() {
+        const playlistItems = document.querySelectorAll('.playlist-item');
+        playlistItems.forEach(item => item.classList.remove('active'));
+        if (playlistItems[songIndex]) {
+            playlistItems[songIndex].classList.add('active');
+        }
+    }
+
+    // Render playlist
+    function renderPlaylist() {
+        playlistEl.innerHTML = '';
+        songs.forEach((song, index) => {
+            const songEl = document.createElement('div');
+            songEl.classList.add('playlist-item');
+            if (index === songIndex) {
+                songEl.classList.add('active');
+            }
+            songEl.innerHTML = `
+                <img src="${song.cover}" alt="${song.title}">
+                <div class="song-info">
+                    <h4>${song.title}</h4>
+                    <p>${song.artist}</p>
+                </div>
+                <span class="duration">${song.duration}</span>
+            `;
+            songEl.addEventListener('click', () => {
+                songIndex = index;
+                loadSong(songs[songIndex]);
+                playSong();
+            });
+            playlistEl.appendChild(songEl);
+        });
+    }
+
+    // Initialize the slideshow and music player
     function init() {
         // Show first slide
         showSlide(0);
@@ -112,22 +204,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Music player controls
-        if (playBtn) {
-            playBtn.addEventListener('click', togglePlay);
-        }
-
-        if (prevBtnMusic) {
-            prevBtnMusic.addEventListener('click', prevSong);
-        }
-
-        if (nextBtnMusic) {
-            nextBtnMusic.addEventListener('click', nextSong);
-        }
-
+        if (playBtn) playBtn.addEventListener('click', togglePlay);
+        if (prevBtn) prevBtn.addEventListener('click', prevSong);
+        if (nextBtn) nextBtn.addEventListener('click', nextSong);
+        
         // Progress bar
+        if (audio) {
+            audio.addEventListener('timeupdate', updateProgress);
+            audio.addEventListener('ended', nextSong);
+        }
+        
         if (progressContainer) {
             progressContainer.addEventListener('click', setProgress);
         }
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                togglePlay();
+            } else if (e.code === 'ArrowRight') {
+                if (audio) audio.currentTime = Math.min(audio.currentTime + 5, audio.duration);
+            } else if (e.code === 'ArrowLeft') {
+                if (audio) audio.currentTime = Math.max(0, audio.currentTime - 5);
+            } else if (e.code === 'ArrowUp') {
+                nextSong();
+            } else if (e.code === 'ArrowDown') {
+                prevSong();
+            }
+        });
+        
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isPlaying) {
+                // Pause when tab is hidden to save resources
+                if (audio) audio.pause();
+                isPlaying = false;
+                if (playBtn) playBtn.innerHTML = '<i class="fas fa-play"></i>';
+            }
+        });
 
         // Time update
         if (audio) {
