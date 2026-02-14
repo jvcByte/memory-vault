@@ -81,7 +81,15 @@ if (token) {
 // Event Listeners
 if (loginBtn) {
     loginBtn.addEventListener('click', () => {
-        window.location.href = `${authEndpoint}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopesArray.join(' ')}&response_type=token&show_dialog=true`;
+        const params = new URLSearchParams({
+            client_id: clientId,
+            response_type: 'token',
+            redirect_uri: redirectUri,
+            scope: scopesArray.join(' '),
+            show_dialog: 'true'
+        });
+        
+        window.location.href = `${authEndpoint}?${params.toString()}`;
     });
 }
 
