@@ -1,8 +1,9 @@
+// app/login/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { signIn, useSession } from 'next-auth/react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { ALLOWED_EMAIL } from '@/lib/config'
 
 export default function LoginPage() {
@@ -11,14 +12,15 @@ export default function LoginPage() {
   const [message, setMessage] = useState('')
   const { status } = useSession()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const callbackUrl = searchParams.get('callbackUrl') || '/'
 
   // Redirect if already authenticated
   useEffect(() => {
     if (status === 'authenticated') {
-      window.location.href = callbackUrl
+      router.push(callbackUrl)
     }
-  }, [status, callbackUrl])
+  }, [status, callbackUrl, router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,7 +59,7 @@ export default function LoginPage() {
       <div className="glass rounded-2xl p-8 max-w-md w-full">
         <h1 className="text-4xl font-heading text-center mb-2">MemoryVault</h1>
         <p className="text-center text-gray-400 mb-8">Private Access Only</p>
-        
+
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm mb-2">Email</label>
@@ -82,7 +84,8 @@ export default function LoginPage() {
         </form>
 
         {message && (
-          <p className={`mt-4 text-center text-sm ${message.includes('Check') ? 'text-green-400' : 'text-red-400'}`}>
+          <p className={`mt-4 text-center text-sm ${message.includes('Check') ? 'text-green-400' : 'text-red-400'
+            }`}>
             {message}
           </p>
         )}

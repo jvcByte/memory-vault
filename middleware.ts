@@ -6,12 +6,14 @@ export default withAuth(
     const token = req.nextauth.token
     const isAuthPage = req.nextUrl.pathname.startsWith('/login')
     const isAdmin = req.nextUrl.pathname.startsWith('/admin')
+    const callbackUrl = req.nextUrl.searchParams.get('callbackUrl') || '/'
 
-    // Allow access to auth pages if not authenticated
+    // Handle auth pages
     if (isAuthPage) {
       if (token) {
-        // If user is already authenticated, redirect to home
-        return NextResponse.redirect(new URL('/', req.url))
+        // If user is already authenticated, redirect to the callback URL or home
+        const redirectUrl = new URL(callbackUrl, req.url)
+        return NextResponse.redirect(redirectUrl)
       }
       return null
     }
@@ -21,22 +23,24 @@ export default withAuth(
       return NextResponse.redirect(new URL('/', req.url))
     }
 
-    // If no token and not an auth page, redirect to login
+    // If no token and not an auth page, redirect to login with the current URL as callback
     if (!token) {
-      return NextResponse.redirect(
-        new URL(`/login?callbackUrl=${encodeURIComponent(req.nextUrl.pathname)}`, req.url)
-      )
+      const loginUrl = new URL('/login', req.url)
+      loginUrl.searchParams.set('callbackUrl', req.nextUrl.pathname)
+      return NextResponse.redirect(loginUrl)
     }
   },
   {
     callbacks: {
-      // We don't need to check the token here as we handle it in the middleware function
-      // This is just a placeholder to satisfy the type definition
+      // We handle authorization in the middleware function
       authorized: () => true,
     },
   }
 )
 
+// Don't run middleware on static files, API routes, or auth routes
 export const config = {
-  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: [
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }
