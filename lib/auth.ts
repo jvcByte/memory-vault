@@ -28,8 +28,10 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user }) {
       // Only allow whitelisted email
       if (!user.email || !isEmailAllowed(user.email)) {
+        console.log('❌ Sign in rejected for:', user.email)
         return false
       }
+      console.log('✅ Sign in allowed for:', user.email)
       return true
     },
     async session({ session, user }) {
@@ -48,10 +50,12 @@ export const authOptions: NextAuthOptions = {
     async createUser({ user }) {
       // Automatically set the allowed email as owner
       if (user.email && isEmailAllowed(user.email)) {
+        console.log('🎯 Creating user and setting as owner:', user.email)
         const { users } = await import('./db/schema')
         const { eq } = await import('drizzle-orm')
         await db.update(users).set({ role: 'owner' }).where(eq(users.id, user.id))
       }
     },
   },
+  debug: process.env.NODE_ENV === 'development',
 }
