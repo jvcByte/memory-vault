@@ -249,8 +249,51 @@ function checkForBlockingExtensions() {
         .map(([name]) => name);
 }
 
+// Check if Spotify Web Playback is available
+async function isSpotifyAvailable() {
+    try {
+        // Test WebSocket connection to Spotify
+        const wsTest = await testSpotifyWebSocket();
+        if (!wsTest.connected) {
+            console.warn('Spotify WebSocket not available:', wsTest.error);
+            return false;
+        }
+        
+        // Test API access
+        const response = await fetch('https://api.spotify.com/v1/me', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            console.warn('Spotify API not available:', error);
+            return false;
+        }
+        
+        return true;
+    } catch (error) {
+        console.warn('Error checking Spotify availability:', error);
+        return false;
+    }
+}
+
+// Initialize the music player (Spotify or local fallback)
+async function initializeMusicPlayer() {
+    const spotifyAvailable = await isSpotifyAvailable();
+    
+    if (spotifyAvailable) {
+        console.log('Spotify is available, initializing Spotify player');
+        return initializeSpotifyPlayer();
+    } else {
+        console.log('Spotify not available, falling back to local music');
+        return initializeLocalMusicPlayer();
+    }
+}
+
 // Initialize the Spotify Web Playback SDK
-async function initializePlayer() {
+async function initializeSpotifyPlayer() {
     if (isPlayerInitialized) return;
 
     // Check for blocking extensions
