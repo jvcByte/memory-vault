@@ -2,10 +2,10 @@ import { NextAuthOptions } from 'next-auth'
 import EmailProvider from 'next-auth/providers/email'
 import { DrizzleAdapter } from '@auth/drizzle-adapter'
 import { db } from './db'
-import { isEmailAllowed, ALLOWED_EMAIL } from './config'
+import { isEmailAllowed } from './config'
 
 export const authOptions: NextAuthOptions = {
-  adapter: DrizzleAdapter(db) as any,
+  adapter: DrizzleAdapter(db) as unknown as NextAuthOptions['adapter'],
   providers: [
     EmailProvider({
       server: {
@@ -21,7 +21,6 @@ export const authOptions: NextAuthOptions = {
   ],
   pages: {
     signIn: '/login',
-    verifyRequest: '/login',
     error: '/login',
   },
   callbacks: {
