@@ -210,27 +210,104 @@ if (searchBtn && searchInput) {
 
 // Initialize Spotify Web Playback SDK
 function initializePlayer() {
-    const accessToken = window.localStorage.getItem('spotify_access_token');
-    if (!accessToken) {
+    const tokenData = JSON.parse(localStorage.getItem('spotify_token_data'));
+    
+    if (!tokenData || !tokenData.access_token) {
         // Handle the redirect from Spotify after login
         async function handleRedirect() {
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
             const error = params.get('error');
+            
+            if (error) {
+                console.error('Authorization error:', error);
+                authMessage.innerHTML = `<p>Authorization error: ${error}</p>`;
+                return;
+            }
+            
+            if (code) {
+                try {
+                    const codeVerifier = localStorage.getItem('code_verifier');
+                    if (!codeVerifier) throw new Error('No code verifier found');
+                    
+                    const response = await fetch('https://accounts.spotify.com/api/token', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`)
+                        },
+                        body: new URLSearchParams({
+                            client_id: clientId,
+                            grant_type: 'authorization_code',
+                            code: code,
+                            redirect_uri: redirectUri,
+                            code_verifier: codeVerifier
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Failed to get access token: ${response.status} - ${errorText}`);
+                    }
+                    
+                    const tokenData = await response.json();
+                    
+                    // Store token data with timestamp
+                    const tokenDataToStore = {
+                        ...tokenData,
+                        timestamp: Date.now()
+                    };
+                    
+                    localStorage.setItem('spotify_token_data', JSON.stringify(tokenDataToStore));
+                    
+                    // Clear the code from URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    
+                    // Show player and hide auth message
+                    document.querySelector('.spotify-player').style.display = 'block';
+                    document.getElementById('authMessage').style.display = 'none';
+                    
+                    // Initialize player with new token
+                    setupPlayer(tokenData.access_token);
+                    
+                } catch (error) {
+                    console.error('Error during authentication:', error);
+                    authMessage.innerHTML = `<p>Error during authentication. Please try again.</p><p>${error.message}</p>`;
+                }
+            }
         }
+        
         handleRedirect();
         return;
     }
     
-    window.onSpotifyWebPlaybackSDKReady = () => {
-        player = new window.Spotify.Player({
-            name: 'Memory Vault Player',
-            getOAuthToken: cb => { cb(accessToken); },
-            volume: 0.5
-        });
+    // If we have a token, set up the player
+    document.querySelector('.spotify-player').style.display = 'block';
+    document.getElementById('authMessage').style.display = 'none';
+    setupPlayer(tokenData.access_token);
+}
 
-        // Ready
-        player.addListener('ready', ({ device_id }) => {
+// Set up the Spotify Web Playback SDK
+function setupPlayer(accessToken) {
+    // Check if Spotify Web Playback SDK is loaded
+    if (!window.Spotify) {
+        console.error('Spotify Web Playback SDK not loaded');
+        return;
+    }
+    
+    // Create a new player instance
+    player = new window.Spotify.Player({
+        name: 'Memory Vault Player',
+        getOAuthToken: cb => { 
+            console.log('Getting OAuth token');
+            cb(accessToken); 
+        },
+        volume: 0.5
+    });
+
+    // Ready
+    player.addListener('ready', ({ device_id }) => {
+        console.log('Spotify player is ready');
             console.log('Ready with Device ID', device_id);
             deviceId = device_id;
             transferPlayback(device_id);
@@ -259,10 +336,15 @@ function initializePlayer() {
         player.connect().then(success => {
             if (success) {
                 console.log('Connected to Spotify player');
+                // After successful connection, fetch the user's playlists
+                fetchPlaylist();
+            } else {
+                console.error('Failed to connect to Spotify player');
             }
+        }).catch(error => {
+            console.error('Error connecting to Spotify player:', error);
         });
-    };
-}
+    }
 
 // Transfer playback to this device
 function transferPlayback(deviceId) {
