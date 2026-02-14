@@ -3,7 +3,7 @@ const clientId = '1ce3893c730c480689dc13df6183f212';
 const redirectUri = 'https://valndinma.vercel.app/spotify.html';
 const authEndpoint = 'https://accounts.spotify.com/authorize';
 const responseType = 'token';
-const scopes = [
+const scopesArray = [
     'user-read-private',
     'user-read-email',
     'user-modify-playback-state',
@@ -17,7 +17,8 @@ const scopes = [
     'streaming',
     'user-library-read',
     'user-library-modify'
-].join('%20');
+];
+const scopes = scopesArray.join('%20');
 
 // Token handling is moved to the main flow below
 
@@ -108,7 +109,7 @@ function initializePlayer() {
     const accessToken = window.localStorage.getItem('spotify_access_token');
     if (!accessToken) {
         // If no token, redirect to Spotify authorization
-        window.location = `${authEndpoint}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&response_type=${responseType}&show_dialog=true`;
+        window.location = `${authEndpoint}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopesArray.join('%20')}&response_type=${responseType}&show_dialog=true`;
         return;
     }
     // Hide auth message and show player
